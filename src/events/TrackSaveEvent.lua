@@ -28,7 +28,7 @@ function TrackSaveEvent:new(id, track)
 end
 
 function TrackSaveEvent:writeStream(streamId, connection)
-    streamWriteInt8(streamId, self.id)
+    streamWriteUIntN(streamId, self.id, GuidanceSteering.SEND_NUM_BITS)
 
     local track = self.track
 
@@ -41,7 +41,7 @@ function TrackSaveEvent:writeStream(streamId, connection)
 end
 
 function TrackSaveEvent:readStream(streamId, connection)
-    self.id = streamReadInt8(streamId)
+    self.id = streamReadUIntN(streamId, GuidanceSteering.SEND_NUM_BITS)
 
     local track = {}
     track.name = streamReadString(streamId)

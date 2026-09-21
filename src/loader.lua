@@ -51,6 +51,7 @@ source(Utils.getFilename("src/strategies/SnapDirectionStrategy.lua", directory))
 
 local guidanceSteering
 local guidanceConfigurations = {}
+local guidanceConfigurationCount = 0
 
 local function isEnabled()
     return guidanceSteering ~= nil
@@ -69,7 +70,7 @@ function init()
     SavegameSettingsEvent.writeStream = Utils.appendedFunction(SavegameSettingsEvent.writeStream, writeStream)
 
     TypeManager.validateTypes = Utils.prependedFunction(TypeManager.validateTypes, validateVehicleTypes)
-    StoreItemUtil.getConfigurationsFromXML = Utils.overwrittenFunction(StoreItemUtil.getConfigurationsFromXML, addGPSConfigurationUtil)
+    ConfigurationUtil.getConfigurationsFromXML = Utils.overwrittenFunction(ConfigurationUtil.getConfigurationsFromXML, addGPSConfigurationUtil)
 end
 
 function loadMission(mission)
@@ -78,18 +79,24 @@ function loadMission(mission)
         return
     end
 
-    guidanceSteering = GuidanceSteering:new(mission, directory, modName, g_i18n, g_gui, g_gui.inputManager, g_messageCenter)
+    guidanceSteering = GuidanceSteering:new(mission, directory, modName, g_i18n, g_gui, g_inputBinding, g_messageCenter)
 
     mission.guidanceSteering = guidanceSteering
 
     addModEventListener(guidanceSteering)
+end
 
+function loadGuidanceConfigurations()
+    if #guidanceConfigurations > 0 then
+        return
+    end
     local xmlFile = loadXMLFile("ConfigurationXML", directory .. "resources/globalPositioningSystemConfiguration.xml")
-    if xmlFile ~= nil then
+    if xmlFile ~= nil and xmlFile ~= 0 then
         for i = 1, 2 do
             local key = ("globalPositioningSystemConfigurations.globalPositioningSystemConfiguration(%d)"):format(i - 1)
 
-            local config = {}
+            local config = VehicleConfigurationItem.new("globalPositioningSystem")
+            config:setIndex(i)
             config.desc = ""
             config.isDefault = getXMLBool(xmlFile, key .. "#isDefault")
             config.dailyUpkeep = 0
@@ -104,6 +111,8 @@ function loadMission(mission)
         end
 
         delete(xmlFile)
+    else
+        Logging.error("Guidance Steering: could not load GPS configuration definitions")
     end
 end
 
@@ -127,6 +136,7 @@ function loadedMission(mission, node)
     end
 
     guidanceSteering:onMissionLoaded(mission)
+    Logging.info("Guidance Steering: GPS configurations added to %d store items", guidanceConfigurationCount)
 end
 
 function unload()
@@ -230,15 +240,29 @@ local function canAddGuidanceSteeringConfiguration(storeItem, xmlFile)
     return disallowedCategories[storeItem.categoryName] == nil and isDrivable and isMotorized
 end
 
-function addGPSConfigurationUtil(xmlFile, superFunc, key, baseDir, customEnvironment, isMod, storeItem)
-    local configurations, defaultConfigurationIds = superFunc(xmlFile, key, baseDir, customEnvironment, isMod, storeItem)
+function addGPSConfigurationUtil(manager, superFunc, xmlFile, key, baseDir, customEnvironment, isMod, storeItem)
+    local configurations, defaultConfigurationIds = superFunc(manager, xmlFile, key, baseDir, customEnvironment, isMod, storeItem)
 
-    if StoreItemUtil.getIsVehicle(storeItem) and canAddGuidanceSteeringConfiguration(storeItem, xmlFile) then
+    if manager == g_vehicleConfigurationManager and StoreItemUtil.getIsVehicle(storeItem) and canAddGuidanceSteeringConfiguration(storeItem, xmlFile) then
         local gpsKey = GlobalPositioningSystem.CONFIG_NAME
+        loadGuidanceConfigurations()
 
-        if configurations ~= nil then
+        if #guidanceConfigurations > 0 then
+            configurations = configurations or {}
+            defaultConfigurationIds = defaultConfigurationIds or {}
             if configurations[gpsKey] == nil then
-                configurations[gpsKey] = guidanceConfigurations
+                configurations[gpsKey] = {}
+                for i, template in ipairs(guidanceConfigurations) do
+                    local config = VehicleConfigurationItem.new(gpsKey)
+                    for name, value in pairs(template) do
+                        config[name] = value
+                    end
+                    local configurationsKey, configurationKey = manager:getConfigurationKeys(gpsKey)
+                    config:loadFromXML(xmlFile, configurationsKey, string.format("%s(%d)", configurationKey, i - 1), baseDir, customEnvironment)
+                    configurations[gpsKey][i] = config
+                end
+                defaultConfigurationIds[gpsKey] = ConfigurationUtil.getDefaultConfigIdFromItems(configurations[gpsKey])
+                guidanceConfigurationCount = guidanceConfigurationCount + 1
             else
                 -- Add enabled values to added xml configurations
                 for id, config in pairs(configurations[gpsKey]) do

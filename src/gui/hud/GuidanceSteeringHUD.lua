@@ -24,8 +24,11 @@ function GuidanceSteeringHUD:new(mission, speedMeterDisplay, i18n, uiFilename)
     instance.steeringIconIsActive = false
     instance.laneText = "0"
 
-    SpeedMeterDisplay.storeScaledValues = Utils.appendedFunction(SpeedMeterDisplay.storeScaledValues, GuidanceSteeringHUD.speedMeterDisplay_storeScaledValues)
-    SpeedMeterDisplay.draw = Utils.appendedFunction(SpeedMeterDisplay.draw, GuidanceSteeringHUD.speedMeterDisplay_draw)
+    if not GuidanceSteeringHUD.hooksInstalled then
+        SpeedMeterDisplay.storeScaledValues = Utils.appendedFunction(SpeedMeterDisplay.storeScaledValues, GuidanceSteeringHUD.speedMeterDisplay_storeScaledValues)
+        SpeedMeterDisplay.draw = Utils.appendedFunction(SpeedMeterDisplay.draw, GuidanceSteeringHUD.speedMeterDisplay_draw)
+        GuidanceSteeringHUD.hooksInstalled = true
+    end
 
     return instance
 end
@@ -38,33 +41,32 @@ end
 
 function GuidanceSteeringHUD:load()
     self:createElements()
+    self:storeScaledValues()
     self:setVehicle(nil)
 end
 
 --- Create the elements for the HUD.
 function GuidanceSteeringHUD:createElements()
     local topRightX, topRightY = self.speedMeterDisplay.gearIcon:getPosition()
-    local marginWidth, marginHeight = self.speedMeterDisplay:scalePixelToScreenVector(GuidanceSteeringHUD.SIZE.BOX_MARGIN)
+    local marginWidth, marginHeight = self.speedMeterDisplay:scalePixelValuesToScreenVector(unpack(GuidanceSteeringHUD.SIZE.BOX_MARGIN))
     self:createBox(self.uiFilename, topRightX + marginWidth, topRightY + marginHeight)
 end
 
 --- Create the box with the HUD icons.
 function GuidanceSteeringHUD:createBox(hudAtlasPath, x, y)
-    local boxWidth, boxHeight = self.speedMeterDisplay:scalePixelToScreenVector(GuidanceSteeringHUD.SIZE.BOX)
+    local boxWidth, boxHeight = self.speedMeterDisplay:scalePixelValuesToScreenVector(unpack(GuidanceSteeringHUD.SIZE.BOX))
     local posX = x - boxWidth * 0.5
 
-    local iconWidth, iconHeight = self.speedMeterDisplay:scalePixelToScreenVector(GuidanceSteeringHUD.SIZE.ICON)
-    local iconPosX, iconPosY = self.speedMeterDisplay:scalePixelToScreenVector(GuidanceSteeringHUD.POSITION.ICON)
+    local iconWidth, iconHeight = self.speedMeterDisplay:scalePixelValuesToScreenVector(unpack(GuidanceSteeringHUD.SIZE.ICON))
+    local iconPosX, iconPosY = self.speedMeterDisplay:scalePixelValuesToScreenVector(unpack(GuidanceSteeringHUD.POSITION.ICON))
 
-    local boxOverlay = Overlay.new(g_baseHUDFilename, posX, y, boxWidth, boxHeight)
+    local boxOverlay = g_overlayManager:createOverlay("gui.gearBg", posX, y, boxWidth, boxHeight)
     local boxElement = HUDElement.new(boxOverlay)
     self.stateBox = boxElement
 
-    self.stateBox:setUVs(GuiUtils.getUVs(SpeedMeterDisplay.UV.GEARS_BAR))
-    self.stateBox:setColor(unpack(SpeedMeterDisplay.COLOR.GEARS_BG))
+    self.stateBox:setColor(0.02, 0.02, 0.02, 0.8)
 
     self.stateBox:setVisible(true)
-    self.speedMeterDisplay:addChild(boxElement)
 
     self.steeringIcon = self:createIcon(hudAtlasPath, posX + iconPosX, y + iconPosY, iconWidth, iconHeight, GuidanceSteeringHUD.UV.STEERING_WHEEL_DISABLED)
 
@@ -107,8 +109,9 @@ function GuidanceSteeringHUD:storeScaledValues()
         return
     end
 
-    self.textOffX, self.textOffY = self.speedMeterDisplay:scalePixelToScreenVector(GuidanceSteeringHUD.POSITION.LANE_TEXT)
-    self.laneTextSize = self.speedMeterDisplay:scalePixelToScreenHeight(GuidanceSteeringHUD.TEXT_SIZE.LANE)
+    self.textOffX, self.textOffY = self.speedMeterDisplay:scalePixelValuesToScreenVector(unpack(GuidanceSteeringHUD.POSITION.LANE_TEXT))
+    local _, textHeight = self.speedMeterDisplay:scalePixelValuesToScreenVector(0, GuidanceSteeringHUD.TEXT_SIZE.LANE)
+    self.laneTextSize = textHeight
 end
 
 --- Sets the current vehicle to display on the HUD.
@@ -153,11 +156,11 @@ function GuidanceSteeringHUD:drawText()
             self.laneIcon:setColor(unpack(color))
         end
 
-        self:drawLaneText()
-
         local topRightX, topRightY = self.speedMeterDisplay.gearIcon:getPosition()
-        local marginWidth, marginHeight = self.speedMeterDisplay:scalePixelToScreenVector(GuidanceSteeringHUD.SIZE.BOX_MARGIN)
+        local marginWidth, marginHeight = self.speedMeterDisplay:scalePixelValuesToScreenVector(unpack(GuidanceSteeringHUD.SIZE.BOX_MARGIN))
         self.stateBox:setPosition(topRightX + marginWidth, topRightY + marginHeight)
+        self.stateBox:draw()
+        self:drawLaneText()
 
         setTextBold(false)
         setTextAlignment(RenderText.ALIGN_LEFT)
@@ -180,11 +183,17 @@ function GuidanceSteeringHUD:drawLaneText()
 end
 
 function GuidanceSteeringHUD.speedMeterDisplay_storeScaledValues(speedMeterDisplay)
-    g_currentMission.guidanceSteering.ui.hud:storeScaledValues()
+    local guidance = g_currentMission ~= nil and g_currentMission.guidanceSteering
+    if guidance ~= nil and guidance.ui.hud ~= nil then
+        guidance.ui.hud:storeScaledValues()
+    end
 end
 
 function GuidanceSteeringHUD.speedMeterDisplay_draw(speedMeterDisplay)
-    g_currentMission.guidanceSteering.ui.hud:drawText()
+    local guidance = g_currentMission ~= nil and g_currentMission.guidanceSteering
+    if guidance ~= nil and guidance.ui.hud ~= nil and speedMeterDisplay:getVisible() then
+        guidance.ui.hud:drawText()
+    end
 end
 
 GuidanceSteeringHUD.SIZE = {

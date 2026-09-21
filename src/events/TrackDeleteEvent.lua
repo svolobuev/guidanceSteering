@@ -27,11 +27,11 @@ function TrackDeleteEvent:new(id)
 end
 
 function TrackDeleteEvent:writeStream(streamId, connection)
-    streamWriteInt8(streamId, self.id)
+    streamWriteUIntN(streamId, self.id, GuidanceSteering.SEND_NUM_BITS)
 end
 
 function TrackDeleteEvent:readStream(streamId, connection)
-    self.id = streamReadInt8(streamId)
+    self.id = streamReadUIntN(streamId, GuidanceSteering.SEND_NUM_BITS)
     self:run(connection)
 end
 

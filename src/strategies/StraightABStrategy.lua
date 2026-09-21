@@ -35,7 +35,11 @@ function StraightABStrategy:getGuidanceData(guidanceNode, data)
     local dirZ = a[3] - b[3]
     local length = MathUtil.vector2Length(dirX, dirZ)
 
-    dirX, dirZ = dirX / length, dirZ / length
+    if length > 0.000001 then
+        dirX, dirZ = dirX / length, dirZ / length
+    else
+        dirX, _, dirZ = localDirectionToWorld(guidanceNode, 0, 0, 1)
+    end
 
     local x, y, z = getWorldTranslation(guidanceNode)
     local dx, dy, dz = dirX, 0, dirZ

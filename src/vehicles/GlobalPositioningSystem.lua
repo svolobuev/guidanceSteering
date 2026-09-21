@@ -34,7 +34,7 @@ function GlobalPositioningSystem.initSpecialization(vehicleType)
     schema:register(XMLValueType.NODE_INDEX, "vehicle.guidanceSteering#node", "GuidanceSteering rootNode")
     schema:setXMLSpecializationType()
 
-    g_configurationManager:addConfigurationType(GlobalPositioningSystem.CONFIG_NAME, g_i18n:getText("configuration_buyableGPS"), "globalPositioningSystem", nil, nil, nil, ConfigurationUtil.SELECTOR_MULTIOPTION)
+    g_vehicleConfigurationManager:addConfigurationType(GlobalPositioningSystem.CONFIG_NAME, g_i18n:getText("configuration_buyableGPS"), nil, VehicleConfigurationItem)
     ObjectChangeUtil.registerObjectChangeXMLPaths(schema, "vehicle.globalPositioningSystemConfigurations.globalPositioningSystemConfiguration(?)")
 
     local schemaSavegame = Vehicle.xmlSchemaSavegame
@@ -60,13 +60,19 @@ end
 
 function GlobalPositioningSystem.registerOverwrittenFunctions(vehicleType)
     SpecializationUtil.registerOverwrittenFunction(vehicleType, "getIsVehicleControlledByPlayer", GlobalPositioningSystem.inj_getIsVehicleControlledByPlayer)
-    SpecializationUtil.registerOverwrittenFunction(vehicleType, "getCanStartAIVehicle", GlobalPositioningSystem.inj_getCanStartAIVehicle)
-    SpecializationUtil.registerOverwrittenFunction(vehicleType, "getShowAIToggleActionEvent", GlobalPositioningSystem.inj_getCanStartAIVehicle)
-    SpecializationUtil.registerOverwrittenFunction(vehicleType, "onDynamicallyPartI3DLoaded", GlobalPositioningSystem.inj_onDynamicallyPartI3DLoaded)
+    if SpecializationUtil.hasSpecialization(AIJobVehicle, vehicleType.specializations) then
+        SpecializationUtil.registerOverwrittenFunction(vehicleType, "getCanStartAIVehicle", GlobalPositioningSystem.inj_getCanStartAIVehicle)
+    end
+    if SpecializationUtil.hasSpecialization(AIAutomaticSteering, vehicleType.specializations) then
+        SpecializationUtil.registerOverwrittenFunction(vehicleType, "setAIAutomaticSteeringEnabled", GlobalPositioningSystem.inj_setAIAutomaticSteeringEnabled)
+    end
 end
 
 function GlobalPositioningSystem.registerEventListeners(vehicleType)
     SpecializationUtil.registerEventListener(vehicleType, "onLoad", GlobalPositioningSystem)
+    SpecializationUtil.registerEventListener(vehicleType, "onDelete", GlobalPositioningSystem)
+    SpecializationUtil.registerEventListener(vehicleType, "onEnterVehicle", GlobalPositioningSystem)
+    SpecializationUtil.registerEventListener(vehicleType, "onLeaveVehicle", GlobalPositioningSystem)
     SpecializationUtil.registerEventListener(vehicleType, "onPostLoad", GlobalPositioningSystem)
     SpecializationUtil.registerEventListener(vehicleType, "onLoadFinished", GlobalPositioningSystem)
     SpecializationUtil.registerEventListener(vehicleType, "onReadStream", GlobalPositioningSystem)
@@ -89,7 +95,7 @@ function GlobalPositioningSystem:onRegisterActionEvents(isActiveForInput, isActi
 
         self:clearActionEventsTable(spec.actionEvents)
 
-        if self:getIsActiveForInput(true, true) then
+        if isActiveForInputIgnoreSelection then
             if not self:getIsAIActive() and spec.hasGuidanceSystem then
                 local nonDrawnActionEvents = {}
                 local function insert(_, actionEventId)
@@ -112,7 +118,7 @@ function GlobalPositioningSystem:onRegisterActionEvents(isActiveForInput, isActi
 
                 local _, actionEventIdToggleGS = self:addActionEvent(spec.actionEvents, InputAction.GS_TOGGLE, self, GlobalPositioningSystem.actionEventToggleGuidanceSteering, false, true, false, true, nil, nil, true)
                 local _, actionEventIdToggleUI = self:addActionEvent(spec.actionEvents, InputAction.GS_SHOW_UI, self, GlobalPositioningSystem.actionEventOnToggleUI, false, true, false, true, nil, nil, true)
-                g_inputBinding:setActionEventTextVisibility(actionEventIdToggleUI, false)
+                g_inputBinding:setActionEventTextVisibility(actionEventIdToggleUI, true)
                 g_inputBinding:setActionEventTextVisibility(actionEventIdToggleGS, true)
                 g_inputBinding:setActionEventTextPriority(actionEventIdToggleUI, GS_PRIO_LOW)
                 g_inputBinding:setActionEventTextPriority(actionEventIdToggleGS, GS_PRIO_LOW)
@@ -128,7 +134,7 @@ function GlobalPositioningSystem:onLoad(savegame)
     if configId ~= nil then
         local item = g_storeManager:getItemByXMLFilename(self.configFileName)
 
-        if item.configurations.globalPositioningSystem ~= nil then
+        if item ~= nil and item.configurations ~= nil and item.configurations.globalPositioningSystem ~= nil then
             local config = item.configurations.globalPositioningSystem[configId]
 
             if config ~= nil then
@@ -168,6 +174,9 @@ function GlobalPositioningSystem:onLoad(savegame)
     end
 
     if self.isClient then
+        spec.samples = {}
+        spec.playHeadLandWarning = false
+        spec.isHeadlandWarningSamplePlaying = false
         local xmlFile = loadXMLFile("GuidanceSounds", Utils.getFilename("resources/sounds.xml", g_currentMission.guidanceSteering.modDirectory))
         if xmlFile ~= nil then
             spec.samples = {}
@@ -266,7 +275,7 @@ end
 function GlobalPositioningSystem:onLoadFinished()
     local spec = self.spec_globalPositioningSystem
 
-    if self.propertyState == Vehicle.PROPERTY_STATE_MISSION then
+    if self.propertyState == VehiclePropertyState.MISSION then
         spec.hasGuidanceSystem = true
     end
 
@@ -387,19 +396,60 @@ function GlobalPositioningSystem:onWriteUpdateStream(streamId, connection, dirty
 end
 
 function GlobalPositioningSystem:onDelete()
-    local spec = self.spec_globalPositioningSystem
-
-    -- Cleanup current strategy
-    spec.lineStrategy:delete()
-
-    -- Delete guidance nodes
-    delete(spec.guidanceNode)
-    delete(spec.guidanceTargetNode)
-
-    -- Remove sounds
-    if self.isClient then
-        g_soundManager:deleteSamples(spec.samples)
+    local spec = self.spec_globalPositioningSystem or self:guidanceSteering_getSpecTable("globalPositioningSystem")
+    if spec == nil then
+        return
     end
+
+    if spec.lineStrategy ~= nil then
+        spec.lineStrategy:delete()
+        spec.lineStrategy = nil
+    end
+
+    for _, field in ipairs({ "guidanceNode", "guidanceTargetNode" }) do
+        local node = spec[field]
+        if node ~= nil and node ~= 0 and entityExists(node) then
+            delete(node)
+        end
+        spec[field] = nil
+    end
+
+    if self.isClient and spec.samples ~= nil then
+        g_soundManager:deleteSamples(spec.samples)
+        spec.samples = nil
+    end
+end
+
+function GlobalPositioningSystem:onEnterVehicle(isControlling)
+    if self.isClient and isControlling and self:getIsEntered() then
+        local ui = g_currentMission.guidanceSteering.ui
+        ui:setVehicle(self.spec_globalPositioningSystem.hasGuidanceSystem and self or nil)
+    end
+end
+
+function GlobalPositioningSystem:onLeaveVehicle(wasEntered)
+    local spec = self.spec_globalPositioningSystem
+    if wasEntered and self.isClient then
+        local ui = g_currentMission.guidanceSteering.ui
+        if ui:getVehicle() == self then
+            ui:setVehicle(nil)
+        end
+    end
+    if self.isServer or wasEntered then
+        spec.lastInputValues.guidanceSteeringIsActive = false
+        spec.guidanceSteeringIsActive = false
+        spec.axisForward = 0
+        self:onSteeringStateChanged(false)
+        self:raiseDirtyFlags(spec.dirtyFlag)
+    end
+end
+
+function GlobalPositioningSystem.inj_setAIAutomaticSteeringEnabled(self, superFunc, isEnabled, ...)
+    local spec = self.spec_globalPositioningSystem
+    if spec ~= nil and (spec.guidanceSteeringIsActive or spec.lastInputValues.guidanceSteeringIsActive) and isEnabled ~= false then
+        return
+    end
+    return superFunc(self, isEnabled, ...)
 end
 
 function GlobalPositioningSystem.updateNetworkInputs(self)
@@ -457,7 +507,7 @@ function GlobalPositioningSystem.updateDelayedNetworkInputs(self, dt)
         if spec.shiftControl.changeCurrentDelay < 0 then
             spec.shiftControl.changeCurrentDelay = spec.shiftControl.changeDelay
 
-            local dir = MathUtil.sign(lastShiftParallelValue)
+            local dir = math.sign(lastShiftParallelValue)
             GlobalPositioningSystem.shiftTrackParallel(data, dt, dir)
 
             spec.shiftControl.forceFinalPush = true
@@ -481,8 +531,8 @@ function GlobalPositioningSystem.updateDelayedNetworkInputs(self, dt)
         if spec.widthControl.changeCurrentDelay < 0 then
             spec.widthControl.changeCurrentDelay = spec.widthControl.changeDelay
 
-            local dir = MathUtil.sign(lastWidthValue)
-            local width = data.width + (spec.lastInputValues.widthIncrement * dir)
+            local dir = math.sign(lastWidthValue)
+            local width = math.max(0.1, data.width + (spec.lastInputValues.widthIncrement * dir))
 
             data.width = width
 
@@ -512,7 +562,7 @@ function GlobalPositioningSystem:onUpdate(dt)
             if hasGuidanceSystem then
                 local guidanceSteeringIsActive = spec.lastInputValues.guidanceSteeringIsActive
                 if guidanceSteeringIsActive and self:getIsActiveForInput(true, true) then
-                    spec.axisForward = MathUtil.clamp((spec.axisAccelerate - spec.axisBrake), -1, 1)
+                    spec.axisForward = math.clamp((spec.axisAccelerate - spec.axisBrake), -1, 1)
                 else
                     spec.axisForward = 0
                 end
@@ -570,7 +620,7 @@ function GlobalPositioningSystem:onUpdate(dt)
         local dirX, _, dirZ = localDirectionToWorld(guidanceNode, worldDirectionToLocal(guidanceNode, lineDirX, 0, lineDirZ))
         --                local dirX, dirZ = lineDirX, lineDirZ
 
-        local dot = MathUtil.clamp(driveDirX * dirX + driveDirZ * dirZ, GlobalPositioningSystem.DIRECTION_LEFT, GlobalPositioningSystem.DIRECTION_RIGHT) -- dot towards point
+        local dot = math.clamp(driveDirX * dirX + driveDirZ * dirZ, GlobalPositioningSystem.DIRECTION_LEFT, GlobalPositioningSystem.DIRECTION_RIGHT) -- dot towards point
         local angle = math.acos(dot)
 
         local snapDirectionMultiplier = 1
@@ -873,9 +923,9 @@ function GlobalPositioningSystem:onUpdateGuidanceData(guidanceData)
     local data = spec.guidanceData
     data.width = Utils.getNoNil(guidanceData.width, GlobalPositioningSystem.DEFAULT_WIDTH)
     data.offsetWidth = Utils.getNoNil(guidanceData.offsetWidth, GlobalPositioningSystem.DEFAULT_OFFSET)
-    data.snapDirectionMultiplier = guidanceData.snapDirectionMultiplier
+    data.snapDirectionMultiplier = guidanceData.snapDirectionMultiplier or 1
     data.snapDirection = guidanceData.snapDirection
-    data.alphaRad = guidanceData.alphaRad
+    data.alphaRad = guidanceData.alphaRad or 0
 
     if self.isServer then
         spec.stateMachine:reset()
@@ -884,6 +934,10 @@ end
 
 function GlobalPositioningSystem:onSteeringStateChanged(isActive)
     local spec = self.spec_globalPositioningSystem
+
+    if isActive and self.spec_aiAutomaticSteering ~= nil and self.spec_aiAutomaticSteering.steeringEnabled then
+        self:setAIAutomaticSteeringEnabled(false)
+    end
 
     if self.isServer then
         spec.stateMachine:reset()
@@ -975,7 +1029,7 @@ function GlobalPositioningSystem.rotateTrack(self, data)
 end
 
 function GlobalPositioningSystem.updateSounds(self, spec, dt)
-    if self == g_currentMission.controlledVehicle then
+    if self:getIsEntered() then
         if spec.playHeadLandWarning then
             if not spec.isHeadlandWarningSamplePlaying then
                 g_soundManager:playSample(spec.samples.warning)
@@ -1023,7 +1077,7 @@ function GlobalPositioningSystem.actionEventOnToggleUI(self, actionName, inputVa
         return
     end
 
-    if self:getHasGuidanceSystem() and self == g_currentMission.controlledVehicle then
+    if self:getHasGuidanceSystem() and self:getIsEntered() then
         g_currentMission.guidanceSteering.ui:onToggleUI()
     end
 end
@@ -1092,7 +1146,6 @@ function GlobalPositioningSystem.actionEventEnableSteering(self, actionName, inp
     end
 
     local spec = self.spec_globalPositioningSystem
-    self.spec_drivable.allowPlayerControl = self.guidanceSteeringIsActive
 
     if spec.guidanceData.width <= 0 then
         g_currentMission:showBlinkingWarning(g_i18n:getText("guidanceSteering_warning_setWidth"), 2000)

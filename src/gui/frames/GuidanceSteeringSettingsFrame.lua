@@ -59,8 +59,6 @@ function GuidanceSteeringSettingsFrame.new(ui, i18n)
 
     self.allowSave = false
 
-    self:registerControls(GuidanceSteeringSettingsFrame.CONTROLS)
-
     return self
 end
 
@@ -128,11 +126,11 @@ function GuidanceSteeringSettingsFrame:onFrameOpen()
         self.allowSave = true
     end
 
-    self.boxLayoutSettings:invalidateLayout()
+
 
     if FocusManager:getFocusedElement() == nil then
         self:setSoundSuppressed(true)
-        FocusManager:setFocus(self.boxLayoutSettings)
+        FocusManager:setFocus(self.guidanceSteeringEnableSteeringElement)
         self:setSoundSuppressed(false)
     end
 end
@@ -203,23 +201,6 @@ function GuidanceSteeringSettingsFrame:build()
 
     self.offsetDisplay:setImageFilename(uiFilename)
     self.offsetDisplay:setImageUVs(nil, unpack(GuiUtils.getUVs(GuidanceSteeringSettingsFrame.UVS.OFFSET_DISPLAY)))
-
-    -- Buttons
-    self.guidanceSteeringPlusButton:setImageFilename(nil, uiFilename)
-    self.guidanceSteeringMinusButton:setImageFilename(nil, uiFilename)
-    self.guidanceSteeringResetWidthButton:setImageFilename(nil, uiFilename)
-
-    self.guidanceSteeringPlusOffsetButton:setImageFilename(nil, uiFilename)
-    self.guidanceSteeringMinusOffsetButton:setImageFilename(nil, uiFilename)
-    self.guidanceSteeringResetOffsetButton:setImageFilename(nil, uiFilename)
-
-    self.guidanceSteeringPlusButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringSettingsFrame.UVS.BUTTON_PLUS))
-    self.guidanceSteeringMinusButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringSettingsFrame.UVS.BUTTON_MIN))
-    self.guidanceSteeringResetWidthButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringSettingsFrame.UVS.BUTTON_RESET))
-    --
-    self.guidanceSteeringPlusOffsetButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringSettingsFrame.UVS.BUTTON_PLUS))
-    self.guidanceSteeringMinusOffsetButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringSettingsFrame.UVS.BUTTON_MIN))
-    self.guidanceSteeringResetOffsetButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringSettingsFrame.UVS.BUTTON_RESET))
 end
 
 ---Callbacks
@@ -288,7 +269,7 @@ function GuidanceSteeringSettingsFrame:changeOffsetWidth(direction)
     local increment = GuidanceSteeringSettingsFrame.INCREMENTS[state] * direction
 
     local threshold = self.currentGuidanceWidth * 0.5
-    self.currentGuidanceOffset = MathUtil.clamp(self.currentGuidanceOffset + increment, -threshold, threshold)
+    self.currentGuidanceOffset = math.clamp(self.currentGuidanceOffset + increment, -threshold, threshold)
     self.guidanceSteeringOffsetWidthText:setText(self:getFormattedUnitLength(self.currentGuidanceOffset))
 
     self:updateOffsetUVs()

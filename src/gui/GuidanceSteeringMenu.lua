@@ -19,9 +19,7 @@ GuidanceSteeringMenu.CONTROLS = {
 ---Creates a new instance of the GuidanceSteeringMenu.
 ---@return GuidanceSteeringMenu
 function GuidanceSteeringMenu.new(messageCenter, i18n, inputManager)
-    local self = TabbedMenu.new(nil, GuidanceSteeringMenu_mt, messageCenter, i18n, inputManager)
-
-    self:registerControls(GuidanceSteeringMenu.CONTROLS)
+    local self = TabbedMenu.new(nil, GuidanceSteeringMenu_mt)
 
     self.i18n = i18n
     self.performBackgroundBlur = false
@@ -45,7 +43,7 @@ function GuidanceSteeringMenu:setupPages()
     local alwaysVisiblePredicate = self:makeIsAlwaysVisiblePredicate()
 
     local orderedPages = {
-        { self.pageSettings, alwaysVisiblePredicate, g_iconsUIFilename, GuidanceSteeringMenu.TAB_UV.SETTINGS },
+        { self.pageSettings, alwaysVisiblePredicate, g_currentMission.guidanceSteering.ui.uiFilename, GuidanceSteeringMenu.TAB_UV.SETTINGS },
         { self.pageStrategy, alwaysVisiblePredicate, g_currentMission.guidanceSteering.ui.uiFilename, GuidanceSteeringMenu.TAB_UV.STRATEGY },
     }
 
@@ -69,7 +67,7 @@ function GuidanceSteeringMenu:setupMenuButtonInfo()
     local onButtonBackFunction = self.clickBackCallback
 
     self.defaultMenuButtonInfo = {
-        { inputAction = InputAction.MENU_BACK, text = self.l10n:getText(GuidanceSteeringMenu.L10N_SYMBOL.BUTTON_BACK), callback = onButtonBackFunction },
+        { inputAction = InputAction.MENU_BACK, text = self.i18n:getText(GuidanceSteeringMenu.L10N_SYMBOL.BUTTON_BACK), callback = onButtonBackFunction },
     }
 
     self.defaultMenuButtonInfoByActions[InputAction.MENU_BACK] = self.defaultMenuButtonInfo[1]

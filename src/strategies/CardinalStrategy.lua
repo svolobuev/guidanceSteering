@@ -43,15 +43,10 @@ end
 
 ---Show the input dialog for setting the current cardinal.
 local function showCardinalDialog(target)
-    if target.vehicle == g_currentMission.controlledVehicle then
-        g_gui:showTextInputDialog({
-            text = g_i18n:getText("guidanceSteering_setting_cardinalTitle"),
-            defaultText = "0",
-            maxCharacters = 3,
-            target = target,
-            callback = CardinalStrategy.cardinalCallback,
-            confirmText = g_i18n:getText("guidanceSteering_setting_cardinalConfirmText")
-        })
+    if target.vehicle.isClient and target.vehicle:getIsEntered() then
+        TextInputDialog.show(CardinalStrategy.cardinalCallback, target, "0",
+            g_i18n:getText("guidanceSteering_setting_cardinalTitle"), nil, 3,
+            g_i18n:getText("guidanceSteering_setting_cardinalConfirmText"))
     end
 end
 
@@ -63,7 +58,11 @@ function CardinalStrategy:interact(guidanceData)
 end
 
 ---Callback on the dialog to set and calculate the current direction.
-function CardinalStrategy:cardinalCallback(cardinal)
+function CardinalStrategy:cardinalCallback(cardinal, confirmed)
+    if confirmed == false then
+        self.vehicle:updateGuidanceData(nil, false, true)
+        return
+    end
     cardinal = tonumber(cardinal)
     if cardinal ~= nil then
         self.currentCardinal = MathUtil.degToRad(cardinal)
@@ -99,7 +98,11 @@ function CardinalStrategy:getGuidanceData(guidanceNode, data)
         local dirZ = a[3] - b[3]
         local length = MathUtil.vector2Length(dirX, dirZ)
 
-        dx, dz = dirX / length, dirZ / length
+        if length > 0.000001 then
+            dx, dz = dirX / length, dirZ / length
+        else
+            dx, _, dz = localDirectionToWorld(guidanceNode, 0, 0, 1)
+        end
     end
 
     return { x, y, z, dx, dz }

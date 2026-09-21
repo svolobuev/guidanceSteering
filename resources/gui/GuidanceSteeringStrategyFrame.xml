@@ -1,81 +1,27 @@
-<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <GUI name="guidanceSteeringStrategy">
-    <GuiElement type="bitmap" profile="settingsBox" position="20px 170px" positionOrigin="bottomLeft" id="container">
-        <GuiElement type="boxLayout" profile="ingameMenuSettingsLayout" position="-20px 0px" size="350px 500px" id="boxLayout">
-
-            <GuiElement type="multiTextOption" profile="guidanceSettingsMultiTextOptionSettings" id="guidanceSteeringStrategyElement"
-                        toolTipElementId="settingsHelpBoxText" toolTipText="$l10n_guidanceSteering_tooltip_strategy">
-                <GuiElement type="button" profile="multiTextOptionLeft"/>
-                <GuiElement type="button" profile="multiTextOptionRight"/>
-                <GuiElement type="text" profile="multiTextOptionText"/>
-                <GuiElement type="text" profile="multiTextOptionTitle" text="$l10n_guidanceSteering_setting_strategy"/>
-                <GuiElement type="bitmap" profile="multiTextOptionBg"/>
-            </GuiElement>
-
-            <GuiElement type="multiTextOption" profile="guidanceSettingsMultiTextOptionSettings" id="guidanceSteeringStrategyMethodElement"
-                        toolTipElementId="settingsHelpBoxText" onClick="onStrategyChanged" toolTipText="$l10n_guidanceSteering_tooltip_strategyMethod">
-                <GuiElement type="button" profile="multiTextOptionLeft"/>
-                <GuiElement type="button" profile="multiTextOptionRight"/>
-                <GuiElement type="text" profile="multiTextOptionText"/>
-                <GuiElement type="text" profile="multiTextOptionTitle" text="$l10n_guidanceSteering_setting_strategyMethod"/>
-                <GuiElement type="bitmap" profile="multiTextOptionBg"/>
-            </GuiElement>
-
-            <GuiElement type="button" profile="guidanceSettingsButton" text="$l10n_guidanceSteering_setting_pointA" onClick="onClickSetPointA" id="guidanceSteeringPointAButton"/>
-            <GuiElement type="button" profile="guidanceSettingsButton" text="$l10n_guidanceSteering_setting_pointB" onClick="onClickSetPointB" id="guidanceSteeringPointBButton"/>
-        </GuiElement>
-
-        <GuiElement type="bitmap" profile="ingameMenuWeatherVerticalSeparator" position="-130px -50px" size="2dp 400px"/>
-
-        <GuiElement type="boxLayout" profile="ingameMenuSettingsLayout" size="350px 500px" position="350px -30px" id="boxLayout">
-
-            <GuiElement size="350px 48px" type="empty" profile="ingameMenuGameSettingsTextInputWrapper">
-                <GuiElement position="10px 0px" type="textInput" profile="guidanceSettingsTextInput" id="guidanceSteeringTrackNameElement"
-                            onEnterPressed="onEnterPressedTrackName" toolTipElementId="settingsHelpBox" toolTipText="$l10n_toolTip_savegameName"
-                            maxCharacters="30" imeKeyboardType="normal" imeTitle="$l10n_ui_savegameName" imeDescription="$l10n_ui_savegameName"
-                            imePlaceholder="$l10n_ui_savegameName" focusInit="onOpen"/>
-                <GuiElement position="10px 10px" type="text" profile="guidanceMultiTextOptionTitle" text="$l10n_ui_savegameName"/>
-            </GuiElement>
-
-            <GuiElement type="checkedOption" profile="guidanceSettingsMultiTextOptionSettings" id="guidanceSteeringScopeFarmIdElement"
-                        toolTipElementId="settingsHelpBoxText" toolTipText="$l10n_guidanceSteering_tooltip_scopeTrackFarmId">
-                <GuiElement position="-25px 0px" type="button" profile="multiTextOptionLeft"/>
-                <GuiElement position="-25px 0px" type="button" profile="multiTextOptionRight"/>
-                <GuiElement position="-25px 0px" type="text" profile="multiTextOptionText"/>
-                <GuiElement position="-25px 14px" type="text" profile="multiTextOptionTitle" text="$l10n_guidanceSteering_setting_scopeTrackFarmId"/>
-                <GuiElement position="-25px 0px" type="bitmap" profile="multiTextOptionBg"/>
-            </GuiElement>
-
-            <GuiElement type="flowLayout" profile="ingameMenuSettingsLayout" size="350px 83px">
-                <GuiElement position="10px 0px" type="button" profile="guidanceButtonDetailRight" id="guidanceSteeringCreateTrackButton" onClick="onClickCreateTrack"/>
-                <GuiElement position="10px 0px" type="button" profile="guidanceButtonDetailLeft" id="guidanceSteeringSaveTrackButton" onClick="onClickSaveTrack"/>
-                <GuiElement position="10px 0px" type="button" profile="guidanceButtonDetailLeft" id="guidanceSteeringRemoveTrackButton" onClick="onClickRemoveTrack"/>
-            </GuiElement>
-
-            <GuiElement type="boxLayout" profile="ingameMenuSettingsLayout" size="350px 83px">
-                <GuiElement position="10px 0px" type="button" profile="guidanceButtonDetailRight" id="guidanceSteeringRotateTrackButton" onClick="onClickRotateTrack"/>
-            </GuiElement>
-
-        </GuiElement>
-
-        <GuiElement type="bitmap" profile="ingameMenuWeatherVerticalSeparator" position="210px -50px" size="2dp 400px"/>
-
-        <GuiElement type="empty" profile="wardrobeListFrame" size="400px 500px" position="455px 0px" id="trackListBox">
-            <GuiElement type="list" size="454px 500px" profile="trackList" id="list" onSelectionChanged="onListSelectionChanged" onClick="onClickSelect" onDoubleClick="onClickSelect" focusInit="onOpen" listSectionHeader="section" showHighlights="true">
-                <GuiElement type="listItem" profile="trackListItem" id="listItemTemplate">
-                    <GuiElement type="text" profile="trackListItemTitle" name="title"/>
-                </GuiElement>
-            </GuiElement>
-        </GuiElement>
-
-        <GuiElement type="threePartBitmap" profile="verticalListSliderRightDocked" id="itemListSlider" size="12px 500px" position="160px 0px">
-            <GuiElement type="slider" profile="verticalListSliderBar" dataElementId="list" handleFocus="false" size="6px 500px"/>
-        </GuiElement>
-    </GuiElement>
-
-    <!-- Tool tip display -->
-    <GuiElement type="bitmap" profile="ingameMenuHelpRowBg" position="30px 90px" id="settingsHelpBox" visible="true">
-        <GuiElement type="bitmap" profile="ingameMenuHelpRowIcon"/>
-        <GuiElement type="text" profile="ingameMenuHelpRowText" id="settingsHelpBoxText" text="" onTextChanged="onToolTipBoxTextChanged"/>
-    </GuiElement>
+  <GuiElement profile="gs25_panel" id="container">
+    <Text profile="gs25_heading" text="$l10n_guidanceSteering_setting_strategy" />
+    <Text profile="gs25_label" position="0px -65px" size="400px 36px" text="$l10n_guidanceSteering_setting_strategy" />
+    <MultiTextOption profile="gs25_option" position="0px -110px" size="400px 36px" id="guidanceSteeringStrategyElement" />
+    <Text profile="gs25_label" position="0px -175px" size="400px 36px" text="$l10n_guidanceSteering_setting_strategyMethod" />
+    <MultiTextOption profile="gs25_option" position="0px -220px" size="400px 36px" id="guidanceSteeringStrategyMethodElement" onClick="onStrategyChanged" />
+    <Button profile="gs25_button" position="0px -305px" size="400px 44px" text="$l10n_guidanceSteering_setting_pointA" id="guidanceSteeringPointAButton" onClick="onClickSetPointA" />
+    <Button profile="gs25_button" position="0px -370px" size="400px 44px" text="$l10n_guidanceSteering_setting_pointB" id="guidanceSteeringPointBButton" onClick="onClickSetPointB" />
+    <Text profile="gs25_label" position="475px -65px" size="430px 36px" text="$l10n_ui_savegameName" />
+    <TextInput profile="gs25_input" position="475px -110px" id="guidanceSteeringTrackNameElement" maxCharacters="30" toolTipElementId="settingsHelpBoxText" toolTipText="$l10n_toolTip_savegameName" />
+    <Text profile="gs25_label" position="475px -175px" size="430px 36px" text="$l10n_guidanceSteering_setting_scopeTrackFarmId" />
+    <CheckedOption profile="gs25_option" position="475px -220px" id="guidanceSteeringScopeFarmIdElement" toolTipElementId="settingsHelpBoxText" toolTipText="$l10n_guidanceSteering_tooltip_scopeTrackFarmId" />
+    <Button profile="gs25_button" position="475px -305px" size="430px 44px" text="$l10n_guidanceSteering_setting_newTrack" id="guidanceSteeringCreateTrackButton" onClick="onClickCreateTrack" />
+    <Button profile="gs25_button" position="475px -370px" size="430px 44px" text="$l10n_guidanceSteering_setting_saveTrack" id="guidanceSteeringSaveTrackButton" onClick="onClickSaveTrack" />
+    <Button profile="gs25_button" position="475px -435px" size="430px 44px" text="$l10n_guidanceSteering_setting_removeTrack" id="guidanceSteeringRemoveTrackButton" onClick="onClickRemoveTrack" />
+    <Button profile="gs25_button" position="475px -500px" size="430px 44px" text="$l10n_input_GS_ROTATE_TRACK" id="guidanceSteeringRotateTrackButton" onClick="onClickRotateTrack" />
+    <Text profile="gs25_label" position="985px -65px" size="465px 36px" text="$l10n_guidanceSteering_setting_currentTrack" />
+    <SmoothList profile="gs25_trackList" position="985px -110px" id="list" onSelectionChanged="onListSelectionChanged" onClick="onClickSelect" onDoubleClick="onClickSelect">
+      <ListItem profile="gs25_trackItem" id="listItemTemplate">
+        <Text profile="gs25_trackTitle" name="title" />
+      </ListItem>
+    </SmoothList>
+    <Text profile="gs25_help" id="settingsHelpBoxText" position="0px -750px" text="" />
+  </GuiElement>
 </GUI>

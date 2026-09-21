@@ -43,11 +43,9 @@ function GuidanceSteeringStrategyFrame.new(ui, i18n)
     self.ui = ui
     self.i18n = i18n
     self.allowSave = false
-    self.rowToTrackId = {}
+    self.trackRows = {}
 
     self.lastLoadedTrackId = -1
-
-    self:registerControls(GuidanceSteeringStrategyFrame.CONTROLS)
 
     return self
 end
@@ -66,23 +64,9 @@ function GuidanceSteeringStrategyFrame:initialize()
 
     self.guidanceSteeringTrackNameElement:setText("Track name")
 
-    self:build()
+
 end
 
-function GuidanceSteeringStrategyFrame:build()
-    local uiFilename = self.ui.uiFilename
-
-    -- Buttons
-    self.guidanceSteeringCreateTrackButton:setImageFilename(nil, uiFilename)
-    self.guidanceSteeringSaveTrackButton:setImageFilename(nil, uiFilename)
-    self.guidanceSteeringRemoveTrackButton:setImageFilename(nil, uiFilename)
-    self.guidanceSteeringRotateTrackButton:setImageFilename(nil, uiFilename)
-
-    self.guidanceSteeringCreateTrackButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringStrategyFrame.UVS.CREATE_TRACK))
-    self.guidanceSteeringSaveTrackButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringStrategyFrame.UVS.SAVE_TRACK))
-    self.guidanceSteeringRemoveTrackButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringStrategyFrame.UVS.REMOVE_TRACK))
-    self.guidanceSteeringRotateTrackButton:setImageUVs(nil, GuiUtils.getUVs(GuidanceSteeringStrategyFrame.UVS.ROTATE_TRACK))
-end
 
 function GuidanceSteeringStrategyFrame:onFrameOpen()
     GuidanceSteeringStrategyFrame:superClass().onFrameOpen(self)
@@ -106,7 +90,7 @@ function GuidanceSteeringStrategyFrame:onFrameClose()
     GuidanceSteeringStrategyFrame:superClass().onFrameClose(self)
 
     if self.allowSave then
-        local element = self.rowToTrackId[self.list:getSelectedElement()]
+        local element = self:getSelectedTrackRow()
         if element ~= nil then
             local trackId = element.trackId
 
@@ -125,19 +109,10 @@ function GuidanceSteeringStrategyFrame:onFrameClose()
 end
 
 function GuidanceSteeringStrategyFrame:buildList()
-    local selectedElement = self.list:getSelectedElement()
-    local selectedTrackId, selectedIndex = nil, 2
-
-    if selectedElement ~= nil then
-        local track = self.rowToTrackId[selectedElement]
-        if track ~= nil then
-            selectedTrackId = track.trackId
-        end
-    end
-
-    self.list:deleteListItems()
-
-    self.rowToTrackId = {}
+    local selectedRow = self:getSelectedTrackRow()
+    local selectedTrackId = selectedRow ~= nil and selectedRow.trackId or nil
+    local selectedIndex = 1
+    self.trackRows = {}
 
     local farmId = AccessHandler.EVERYONE
     local vehicle = self.ui:getVehicle()
@@ -145,45 +120,34 @@ function GuidanceSteeringStrategyFrame:buildList()
         farmId = vehicle:getOwnerFarmId()
     end
 
-    local groups = { "Base group" }
-    for _, group in ipairs(groups) do
-
-        for id, track in pairs(self.guidanceSteering:getTracksForFarmId(farmId)) do
-            local row = self:createItem(("%s - %s"):format(id, track.name))
-            local selectionIndex = #self.list.elements
-
-            self.rowToTrackId[row] = { trackId = id, selectionIndex = selectionIndex }
-
-            if id == selectedTrackId then
-                selectedIndex = selectionIndex
-            end
+    for id, track in pairs(self.guidanceSteering:getTracksForFarmId(farmId)) do
+        table.insert(self.trackRows, { trackId = id, title = ("%s - %s"):format(id, track.name) })
+    end
+    table.sort(self.trackRows, function(a, b) return a.trackId < b.trackId end)
+    for index, row in ipairs(self.trackRows) do
+        row.selectionIndex = index
+        if row.trackId == selectedTrackId then
+            selectedIndex = index
         end
     end
 
-    self.list:updateAbsolutePosition()
-
-    -- Go to cell 2 and cell 1 is a category
-    self.list:setSelectedIndex(selectedIndex)
+    self.list:reloadData()
+    if #self.trackRows > 0 then
+        self.list:setSelectedIndex(selectedIndex)
+    end
     self:onListSelectionChanged()
 end
 
----Create a list group
-function GuidanceSteeringStrategyFrame:createGroupHeader(title)
-    local item = self.listCategoryTemplate:clone(self.list)
-    item:applyProfile("trackListItemGroup")
-    item:getDescendantByName("title"):setText(title)
-    item.doNotAlternate = true
-
-    return item
+function GuidanceSteeringStrategyFrame:getSelectedTrackRow()
+    return self.trackRows[self.list:getSelectedIndexInSection()]
 end
 
----Create a list item
-function GuidanceSteeringStrategyFrame:createItem(title)
-    local item = self.listItemTemplate:clone(self.list)
-    item:applyProfile("trackListItem")
-    item:getDescendantByName("title"):setText(title)
+function GuidanceSteeringStrategyFrame:getNumberOfItemsInSection(list, section)
+    return #self.trackRows
+end
 
-    return item
+function GuidanceSteeringStrategyFrame:populateCellForItemInSection(list, section, index, cell)
+    cell:getAttribute("title"):setText(self.trackRows[index].title)
 end
 
 --- Get the frame's main content element's screen size.
@@ -201,7 +165,7 @@ function GuidanceSteeringStrategyFrame:onClickSelect(_, element)
 end
 
 function GuidanceSteeringStrategyFrame:onListSelectionChanged()
-    local element = self.rowToTrackId[self.list:getSelectedElement()]
+    local element = self:getSelectedTrackRow()
     if element ~= nil then
         self:onDisplayElementsChanged(element)
     end
@@ -224,7 +188,7 @@ function GuidanceSteeringStrategyFrame:onClickCreateTrack()
 end
 
 function GuidanceSteeringStrategyFrame:onClickSaveTrack()
-    local element = self.rowToTrackId[self.list:getSelectedElement()]
+    local element = self:getSelectedTrackRow()
     if element ~= nil then
         local trackId = element.trackId
         local track = self.guidanceSteering:getTrack(trackId)
@@ -239,7 +203,7 @@ function GuidanceSteeringStrategyFrame:onClickSaveTrack()
 end
 
 function GuidanceSteeringStrategyFrame:onClickRemoveTrack()
-    local element = self.rowToTrackId[self.list:getSelectedElement()]
+    local element = self:getSelectedTrackRow()
 
     if element ~= nil then
         local trackId = element.trackId
@@ -425,10 +389,7 @@ function GuidanceSteeringStrategyFrame:loadStrategy(method)
 end
 
 function GuidanceSteeringStrategyFrame:setWarningMessage(message)
-    g_gui:showInfoDialog({
-        text = message,
-        okText = self.i18n:getText("button_ok")
-    })
+    InfoDialog.show(message, nil, nil, nil, self.i18n:getText("button_ok"))
 end
 
 function GuidanceSteeringStrategyFrame:onDisplayElementsChanged(element)

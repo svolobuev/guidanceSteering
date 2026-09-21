@@ -35,8 +35,10 @@ end
 ---purges the point nodes
 function ABPoint:purge()
     self:iterate(function(point)
-        delete(point.node)
-        point = nil
+        if point.node ~= nil and point.node ~= 0 and entityExists(point.node) then
+            delete(point.node)
+        end
+        point.node = nil
     end)
 
     self.points = { a = nil, b = nil }
@@ -85,7 +87,8 @@ end
 ---Gets point node by name
 ---@param name string
 function ABPoint:getPointNode(name)
-    return self.points[name].node
+    local point = self.points[name]
+    return point ~= nil and point.node or nil
 end
 
 ---Gets if the AB points are created

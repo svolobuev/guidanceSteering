@@ -8,7 +8,7 @@
 GuidanceSteering = {}
 
 GuidanceSteering.SEND_NUM_BITS = 8 -- 2 ^ 8 = 256 max
-GuidanceSteering.MAX_NUM_TRACKS = 2 ^ GuidanceSteering.SEND_NUM_BITS
+GuidanceSteering.MAX_NUM_TRACKS = 2 ^ GuidanceSteering.SEND_NUM_BITS - 1
 
 GuidanceSteering.GROUND_CLEARANCE_OFFSET = .25
 
@@ -37,9 +37,6 @@ function GuidanceSteering:new(mission, modDirectory, modName, i18n, gui, inputMa
     self.showGuidanceLinesAsDots = false
     self.guidanceTerrainAngleIsActive = true
     self.lineOffset = GuidanceSteering.GROUND_CLEARANCE_OFFSET
-
-    BaseMission.onEnterVehicle = Utils.appendedFunction(BaseMission.onEnterVehicle, GuidanceSteering.onEnterVehicle)
-    BaseMission.onLeaveVehicle = Utils.appendedFunction(BaseMission.onLeaveVehicle, GuidanceSteering.onLeaveVehicle)
 
     return self
 end
@@ -165,7 +162,7 @@ end
 ---@param id number
 ---@param data table
 local function _createTrack(self, id, data)
-    if id > GuidanceSteering.MAX_NUM_TRACKS then
+    if #self.savedTracks >= GuidanceSteering.MAX_NUM_TRACKS then
         Logger.warning(("Maximum of %s saved tracks reached!"):format(GuidanceSteering.MAX_NUM_TRACKS))
         return
     end
@@ -267,18 +264,12 @@ function GuidanceSteering:isTrackValid(id)
         return false
     end
 
-    local valid = true
-    local nInvalid = 0
-    for _, dir in ipairs(track.guidanceData.snapDirection) do
-        valid = valid and dir ~= 0 or nInvalid < 2
-        -- x and z directions can be 0 degrees.
-        if not valid then
-            nInvalid = nInvalid + 1
-        end
+    local data = track.guidanceData
+    if data == nil or data.snapDirection == nil or data.width == nil or data.width <= 0 then
+        return false
     end
-
-    -- Some direction can be 0 when position is perfectly straight, but when multiple are 0 the direction is not set.
-    return valid
+    local x, z = data.snapDirection[1], data.snapDirection[2]
+    return type(x) == "number" and type(z) == "number" and x * x + z * z > 0.000001
 end
 
 ---Checks if the given name exists on a different track
@@ -367,6 +358,8 @@ function GuidanceSteering.installSpecializations(vehicleTypeManager, specializat
 
     for typeName, typeEntry in pairs(vehicleTypeManager:getTypes()) do
         if SpecializationUtil.hasSpecialization(Drivable, typeEntry.specializations) and
+            SpecializationUtil.hasSpecialization(Motorized, typeEntry.specializations) and
+            SpecializationUtil.hasSpecialization(Enterable, typeEntry.specializations) and
             not SpecializationUtil.hasSpecialization(SplineVehicle, typeEntry.specializations) and
             not SpecializationUtil.hasSpecialization(GlobalPositioningSystem, typeEntry.specializations) then
             vehicleTypeManager:addSpecialization(typeName, modName .. ".globalPositioningSystem")
@@ -381,7 +374,7 @@ end
 function GuidanceSteering.actionEventAccelerate(vehicle, superFunc, actionName, inputValue, ...)
     local spec = vehicle.spec_globalPositioningSystem
     if spec ~= nil and vehicle:getHasGuidanceSystem() and spec.guidanceSteeringIsActive and vehicle.getShuttleDriveDirection == nil then
-        spec.axisAccelerate = MathUtil.clamp(inputValue, 0, 1)
+        spec.axisAccelerate = math.clamp(inputValue, 0, 1)
     end
 
     superFunc(vehicle, actionName, inputValue, ...)
@@ -390,7 +383,7 @@ end
 function GuidanceSteering.actionEventBrake(vehicle, superFunc, actionName, inputValue, ...)
     local spec = vehicle.spec_globalPositioningSystem
     if spec ~= nil and vehicle:getHasGuidanceSystem() and spec.guidanceSteeringIsActive and vehicle.getShuttleDriveDirection == nil then
-        spec.axisBrake = MathUtil.clamp(inputValue, 0, 1)
+        spec.axisBrake = math.clamp(inputValue, 0, 1)
     end
 
     superFunc(vehicle, actionName, inputValue, ...)

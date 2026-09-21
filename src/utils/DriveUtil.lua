@@ -37,6 +37,9 @@ function DriveUtil.guideSteering(vehicle, dt)
     local spec = vehicle.spec_globalPositioningSystem
 
     local data = spec.guidanceData
+    if not data.isCreated or data.width <= 0 then
+        return
+    end
     local driveX, driveY, driveZ = unpack(data.driveTarget)
     local snapDirX, snapDirZ = unpack(data.snapDirection)
     local lineDirX = data.snapDirectionMultiplier * snapDirX
@@ -85,7 +88,12 @@ function DriveUtil.driveToPoint(vehicle, dt, tX, tZ)
         local rotTime = 0
         if hasIntersection and math.abs(f2) < DriveUtil.HIT_THRESHOLD then
             local radius = tX * f2
-            rotTime = vehicle.wheelSteeringDuration * (math.atan(1 / radius) / math.atan(1 / vehicle.maxTurningRadius))
+            if math.abs(radius) > 0.000001 then
+                rotTime = vehicle:getSteeringRotTimeByCurvature(1 / radius)
+                if vehicle:getReverserDirection() < 0 then
+                    rotTime = -rotTime
+                end
+            end
         end
 
         local targetRotTime = 0

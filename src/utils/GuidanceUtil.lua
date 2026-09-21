@@ -91,7 +91,10 @@ function GuidanceUtil.getMaxWorkAreaWidth(object)
     end
 
     local width = maxWidth + math.abs(minWidth)
-    local leftMarker, rightMarker = object:getAIMarkers()
+    local leftMarker, rightMarker
+    if object.getAIMarkers ~= nil then
+        leftMarker, rightMarker = object:getAIMarkers()
+    end
     if leftMarker ~= nil and rightMarker ~= nil then
         local lx = localToLocal(leftMarker, node, 0, 0, 0)
         local rx = localToLocal(rightMarker, node, 0, 0, 0)
@@ -115,13 +118,12 @@ function GuidanceUtil.writeGuidanceDataObject(streamId, data)
     local x, y, z, dirX, dirZ = unpack(data.driveTarget)
     local snapDirX, snapDirZ, snapX, snapZ = unpack(data.snapDirection)
 
-    -- Compress width to int cause we round on the 3th decimal
-    streamWriteUInt16(streamId, math.floor(data.width * 1000))
+    streamWriteFloat32(streamId, data.width)
     streamWriteFloat32(streamId, data.offsetWidth)
 
     streamWriteBool(streamId, data.snapDirectionMultiplier ~= nil)
     if data.snapDirectionMultiplier ~= nil then
-        streamWriteUIntN(streamId, data.snapDirectionMultiplier, 2)
+        streamWriteBool(streamId, data.snapDirectionMultiplier < 0)
     end
 
     streamWriteBool(streamId, data.alphaRad ~= nil)
@@ -130,20 +132,15 @@ function GuidanceUtil.writeGuidanceDataObject(streamId, data)
         streamWriteFloat32(streamId, data.alphaRad) -- don't compress alphaRad
     end
 
-    local compressionParamsXZ = g_currentMission.vehicleXZPosHighPrecisionCompressionParams
-    local compressionParamsY = g_currentMission.vehicleXZPosHighPrecisionCompressionParams
-
-    NetworkUtil.writeCompressedWorldPosition(streamId, x, compressionParamsXZ)
-    NetworkUtil.writeCompressedWorldPosition(streamId, y, compressionParamsY)
-    NetworkUtil.writeCompressedWorldPosition(streamId, z, compressionParamsXZ)
-
-    NetworkUtil.writeCompressedWorldPosition(streamId, dirX, compressionParamsXZ)
-    NetworkUtil.writeCompressedWorldPosition(streamId, dirZ, compressionParamsXZ)
-
-    NetworkUtil.writeCompressedWorldPosition(streamId, snapX, compressionParamsXZ)
-    NetworkUtil.writeCompressedWorldPosition(streamId, snapZ, compressionParamsXZ)
-    NetworkUtil.writeCompressedWorldPosition(streamId, snapDirX, compressionParamsXZ)
-    NetworkUtil.writeCompressedWorldPosition(streamId, snapDirZ, compressionParamsXZ)
+    streamWriteFloat32(streamId, x)
+    streamWriteFloat32(streamId, y)
+    streamWriteFloat32(streamId, z)
+    streamWriteFloat32(streamId, dirX)
+    streamWriteFloat32(streamId, dirZ)
+    streamWriteFloat32(streamId, snapX)
+    streamWriteFloat32(streamId, snapZ)
+    streamWriteFloat32(streamId, snapDirX)
+    streamWriteFloat32(streamId, snapDirZ)
 end
 
 ---Reads the compressed values from the network packet
@@ -151,33 +148,29 @@ end
 function GuidanceUtil.readGuidanceDataObject(streamId)
     local data = {}
 
-    data.width = streamReadUInt16(streamId) / 1000
+    data.width = streamReadFloat32(streamId)
     data.offsetWidth = streamReadFloat32(streamId)
 
     if streamReadBool(streamId) then
-        data.snapDirectionMultiplier = streamReadUIntN(streamId, 2)
+        data.snapDirectionMultiplier = streamReadBool(streamId) and -1 or 1
     end
 
     if streamReadBool(streamId) then
         data.alphaRad = streamReadFloat32(streamId)
     end
 
-    local compressionParamsXZ = g_currentMission.vehicleXZPosHighPrecisionCompressionParams
-    local compressionParamsY = g_currentMission.vehicleXZPosHighPrecisionCompressionParams
-
-    local x = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
-    local y = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsY)
-    local z = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
-
-    local dirX = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
-    local dirZ = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
+    local x = streamReadFloat32(streamId)
+    local y = streamReadFloat32(streamId)
+    local z = streamReadFloat32(streamId)
+    local dirX = streamReadFloat32(streamId)
+    local dirZ = streamReadFloat32(streamId)
 
     data.driveTarget = { x, y, z, dirX, dirZ }
 
-    local snapX = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
-    local snapZ = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
-    local snapDirX = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
-    local snapDirZ = NetworkUtil.readCompressedWorldPosition(streamId, compressionParamsXZ)
+    local snapX = streamReadFloat32(streamId)
+    local snapZ = streamReadFloat32(streamId)
+    local snapDirX = streamReadFloat32(streamId)
+    local snapDirZ = streamReadFloat32(streamId)
 
     data.snapDirection = { snapDirX, snapDirZ, snapX, snapZ }
 

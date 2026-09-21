@@ -23,9 +23,11 @@ function GuidanceSteeringUI:new(mission, i18n, modDirectory, gui, inputManager, 
     self.messageCenter = messageCenter
     self.isClient = mission:getIsClient()
 
-    self.uiFilename = Utils.getFilename("resources/guidanceSteering_1080p.png", modDirectory)
+    self.uiFilename = Utils.getFilename("resources/guidanceSteering_1080p.dds", modDirectory)
 
-    self.hud = GuidanceSteeringHUD:new(mission, mission.hud.speedMeter, i18n, self.uiFilename)
+    if self.isClient then
+        self.hud = GuidanceSteeringHUD:new(mission, mission.hud.speedMeter, i18n, self.uiFilename)
+    end
 
     self.vehicle = nil
 
@@ -46,7 +48,7 @@ function GuidanceSteeringUI:load()
 
         self.hud:load()
 
-        self:loadMenu()
+        self.menuLoaded = false
     end
 end
 
@@ -71,6 +73,19 @@ end
 ---Action event to toggle the menu.
 function GuidanceSteeringUI:onToggleUI()
     if not self.mission.isSynchronizingWithPlayers then
+        if not self.menuLoaded then
+            local previousGui = FocusManager.currentGui
+            local success, message = pcall(self.loadMenu, self)
+            if previousGui ~= nil then
+                FocusManager:setGui(previousGui)
+            end
+            if not success then
+                Logging.error("Guidance Steering: menu loading failed: %s", tostring(message))
+                InfoDialog.show(tostring(message))
+                return
+            end
+            self.menuLoaded = true
+        end
         self.gui:showGui("GuidanceSteeringMenu")
     end
 end
@@ -78,7 +93,9 @@ end
 ---Set the current vehicle on the UI.
 function GuidanceSteeringUI:setVehicle(vehicle)
     self.vehicle = vehicle
-    self.hud:setVehicle(vehicle)
+    if self.hud ~= nil then
+        self.hud:setVehicle(vehicle)
+    end
 end
 
 ---Get the current vehicle.
